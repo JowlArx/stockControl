@@ -2,22 +2,23 @@ const express = require('express');
 const db = require('../models/db'); // Importa la conexión a la base de datos
 const router = express.Router();
 
-// Obtener todas las categorias
+// Obtener todas las categorías
 router.get('/', (req, res) => {
     const query = `
-        SELECT * FROM categories
+        SELECT c.* 
+        FROM categories c
     `;
 
     db.query(query, (err, results) => {
         if (err) {
-            console.error('Error al obtener categorias:', err);
+            console.error('Error al obtener categorías:', err);
             return res.status(500).send('Error interno del servidor');
         }
         res.status(200).json(results);
     });
 });
 
-// Obtener una categoria por ID
+// Obtener una categoría por ID
 router.get('/:id', (req, res) => {
     const { id } = req.params;
 
@@ -28,17 +29,17 @@ router.get('/:id', (req, res) => {
 
     db.query(query, [id], (err, results) => {
         if (err) {
-            console.error('Error al obtener la categoria:', err);
+            console.error('Error al obtener la categoría:', err);
             return res.status(500).send('Error interno del servidor');
         }
         if (results.length === 0) {
-            return res.status(404).send('Categoria no encontrada');
+            return res.status(404).send('Categoría no encontrada');
         }
         res.status(200).json(results[0]);
     });
 });
 
-// Crear una nueva categoria
+// Crear una nueva categoría
 router.post('/', (req, res) => {
     const { name, description } = req.body;
 
@@ -53,14 +54,18 @@ router.post('/', (req, res) => {
 
     db.query(query, [name, description], (err, result) => {
         if (err) {
-            console.error('Error al crear la categoria:', err);
-            return res.status(500).send('Error interno del servidor');
+            console.error('Error al crear la categoría:', err.sqlMessage || err.message);
+            return res.status(500).json({
+                error: 'Error interno del servidor',
+                details: err.sqlMessage || err.message
+            });
         }
-        res.status(201).send({ id: result.insertId, message: 'Categoria creada exitosamente' });
+        res.status(201).send({ id: result.insertId, message: 'Categoría creada exitosamente' });
     });
 });
 
-// Actualizar una categoria (PUT)
+
+// Actualizar una categoría (PUT)
 router.put('/:id', (req, res) => {
     const { id } = req.params;
     const { name, description } = req.body;
@@ -77,17 +82,17 @@ router.put('/:id', (req, res) => {
 
     db.query(query, [name, description, id], (err, result) => {
         if (err) {
-            console.error('Error al actualizar la categoria:', err);
+            console.error('Error al actualizar la categoría:', err);
             return res.status(500).send('Error interno del servidor');
         }
         if (result.affectedRows === 0) {
-            return res.status(404).send('Categoria no encontrada');
+            return res.status(404).send('Categoría no encontrada');
         }
-        res.status(200).send('Categoria actualizada exitosamente');
+        res.status(200).send('Categoría actualizada exitosamente');
     });
 });
 
-// Actualizar parcialmente una categoria (PATCH)
+// Actualizar parcialmente una categoría (PATCH)
 router.patch('/:id', (req, res) => {
     const { id } = req.params;
     const fields = req.body;
@@ -107,17 +112,17 @@ router.patch('/:id', (req, res) => {
 
     db.query(query, [...values, id], (err, result) => {
         if (err) {
-            console.error('Error al actualizar parcialmente la categoria:', err);
+            console.error('Error al actualizar parcialmente la categoría:', err);
             return res.status(500).send('Error interno del servidor');
         }
         if (result.affectedRows === 0) {
-            return res.status(404).send('Categoria no encontrada');
+            return res.status(404).send('Categoría no encontrada');
         }
-        res.status(200).send('Categoria actualizada parcialmente');
+        res.status(200).send('Categoría actualizada parcialmente');
     });
 });
 
-// Eliminar una categoria (DELETE)
+// Eliminar una categoría (DELETE)
 router.delete('/:id', (req, res) => {
     const { id } = req.params;
 
@@ -128,13 +133,13 @@ router.delete('/:id', (req, res) => {
 
     db.query(query, [id], (err, result) => {
         if (err) {
-            console.error('Error al eliminar la categoria:', err);
+            console.error('Error al eliminar la categoría:', err);
             return res.status(500).send('Error interno del servidor');
         }
         if (result.affectedRows === 0) {
-            return res.status(404).send('Categoria no encontrada');
+            return res.status(404).send('Categoría no encontrada');
         }
-        res.status(200).send('Categoria eliminada exitosamente');
+        res.status(200).send('Categoría eliminada exitosamente');
     });
 });
 
