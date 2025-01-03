@@ -3,120 +3,146 @@ const db = require('../models/db'); // Importa la conexión a la base de datos
 const router = express.Router();
 
 
-// Ruta para obtener todos los productos
+// Obtener todos los productos
 router.get('/', (req, res) => {
-    db.query('SELECT * FROM products', (err, results) => {
+    const query = `
+        SELECT p.*, c.name AS category_name, s.name AS supplier_name 
+        FROM products p
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN suppliers s ON p.supplier_id = s.id
+    `;
+
+    db.query(query, (err, results) => {
         if (err) {
-            console.error('Error al obtener los productos:', err.message);
-            return res.status(500).json({ error: 'Error al obtener los productos' });
+            console.error('Error al obtener productos:', err);
+            return res.status(500).send('Error interno del servidor');
         }
         res.status(200).json(results);
     });
 });
-// Ruta para crear un nuevo producto
-router.post('/', (req, res) => {
-    const { name, category, stock, unit_price } = req.body;
 
-    // Validación básica
-    if (!name || !category || stock == null || unit_price == null) {
-        return res.status(400).json({ error: 'Todos los campos son requeridos' });
-    }
+// Obtener un producto por ID
+router.get('/:id', (req, res) => {
+    const { id } = req.params;
 
-    const query = 'INSERT INTO products (name, category, stock, unit_price) VALUES (?, ?, ?, ?)';
-    const values = [name, category, stock, unit_price];
+    const query = `
+        SELECT p.*, c.name AS category_name, s.name AS supplier_name 
+        FROM products p
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN suppliers s ON p.supplier_id = s.id
+        WHERE p.id = ?
+    `;
 
-    db.query(query, values, (err, result) => {
+    db.query(query, [id], (err, results) => {
         if (err) {
-            console.error('Error al agregar el producto:', err.message);
-            return res.status(500).json({ error: 'Error al agregar el producto' });
+            console.error('Error al obtener el producto:', err);
+            return res.status(500).send('Error interno del servidor');
         }
-        res.status(201).json({
-            message: 'Producto agregado exitosamente',
-            product: {
-                id: result.insertId,
-                name,
-                category,
-                stock,
-                unit_price,
-            },
-        });
+        if (results.length === 0) {
+            return res.status(404).send('Producto no encontrado');
+        }
+        res.status(200).json(results[0]);
     });
 });
 
-//POST ELEMENT
+// Crear un nuevo producto
+router.post('/', (req, res) => {
+    const { name, description, category_id, supplier_id, price, unit } = req.body;
 
+    if (!name || !price || !unit) {
+        return res.status(400).send('Los campos "name", "price" y "unit" son obligatorios');
+    }
+
+    const query = `
+        INSERT INTO products (name, description, category_id, supplier_id, price, unit, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
+    `;
+
+    db.query(query, [name, description, category_id, supplier_id, price, unit], (err, result) => {
+        if (err) {
+            console.error('Error al crear el producto:', err);
+            return res.status(500).send('Error interno del servidor');
+        }
+        res.status(201).send({ id: result.insertId, message: 'Producto creado exitosamente' });
+    });
+});
+
+// Actualizar un producto (PUT)
 router.put('/:id', (req, res) => {
     const { id } = req.params;
-    const { name, category, stock, unit_price } = req.body;
+    const { name, description, category_id, supplier_id, price, unit } = req.body;
 
-    // Validación básica
-    if (!name || !category || stock == null || unit_price == null) {
-        return res.status(400).json({ error: 'Todos los campos son requeridos' });
+    if (!name || !price || !unit) {
+        return res.status(400).send('Los campos "name", "price" y "unit" son obligatorios');
     }
 
-    const query = 'UPDATE products SET name = ?, category = ?, stock = ?, unit_price = ? WHERE id = ?';
-    const values = [name, category, stock, unit_price, id];
+    const query = `
+        UPDATE products
+        SET name = ?, description = ?, category_id = ?, supplier_id = ?, price = ?, unit = ?, updated_at = NOW()
+        WHERE id = ?
+    `;
 
-    db.query(query, values, (err, result) => {
+    db.query(query, [name, description, category_id, supplier_id, price, unit, id], (err, result) => {
         if (err) {
-            console.error('Error al actualizar el producto:', err.message);
-            return res.status(500).json({ error: 'Error al actualizar el producto' });
+            console.error('Error al actualizar el producto:', err);
+            return res.status(500).send('Error interno del servidor');
         }
-
         if (result.affectedRows === 0) {
-            return res.status(404).json({ error: 'Producto no encontrado' });
+            return res.status(404).send('Producto no encontrado');
         }
-
-        res.status(200).json({ message: 'Producto actualizado exitosamente' });
+        res.status(200).send('Producto actualizado exitosamente');
     });
 });
 
-// Patch element by id
-
+// Actualizar parcialmente un producto (PATCH)
 router.patch('/:id', (req, res) => {
     const { id } = req.params;
-    const updates = req.body;
+    const fields = req.body;
 
-    // Generar dinámicamente el query
-    const fields = Object.keys(updates).map((field) => `${field} = ?`).join(', ');
-    const values = [...Object.values(updates), id];
+    if (Object.keys(fields).length === 0) {
+        return res.status(400).send('No se proporcionaron campos para actualizar');
+    }
 
-    const query = `UPDATE products SET ${fields} WHERE id = ?`;
+    const columns = Object.keys(fields).map(key => `${key} = ?`).join(', ');
+    const values = Object.values(fields);
 
-    db.query(query, values, (err, result) => {
+    const query = `
+        UPDATE products
+        SET ${columns}, updated_at = NOW()
+        WHERE id = ?
+    `;
+
+    db.query(query, [...values, id], (err, result) => {
         if (err) {
-            console.error('Error al actualizar el producto parcialmente:', err.message);
-            return res.status(500).json({ error: 'Error al actualizar el producto parcialmente' });
+            console.error('Error al actualizar parcialmente el producto:', err);
+            return res.status(500).send('Error interno del servidor');
         }
-
         if (result.affectedRows === 0) {
-            return res.status(404).json({ error: 'Producto no encontrado' });
+            return res.status(404).send('Producto no encontrado');
         }
-
-        res.status(200).json({ message: 'Producto actualizado parcialmente' });
+        res.status(200).send('Producto actualizado parcialmente');
     });
 });
 
-// delete element by id 
-
+// Eliminar un producto (DELETE)
 router.delete('/:id', (req, res) => {
     const { id } = req.params;
 
-    const query = 'DELETE FROM products WHERE id = ?';
+    const query = `
+        DELETE FROM products
+        WHERE id = ?
+    `;
 
     db.query(query, [id], (err, result) => {
         if (err) {
-            console.error('Error al eliminar el producto:', err.message);
-            return res.status(500).json({ error: 'Error al eliminar el producto' });
+            console.error('Error al eliminar el producto:', err);
+            return res.status(500).send('Error interno del servidor');
         }
-
         if (result.affectedRows === 0) {
-            return res.status(404).json({ error: 'Producto no encontrado' });
+            return res.status(404).send('Producto no encontrado');
         }
-
-        res.status(200).json({ message: 'Producto eliminado exitosamente' });
+        res.status(200).send('Producto eliminado exitosamente');
     });
 });
-
 
 module.exports = router;
