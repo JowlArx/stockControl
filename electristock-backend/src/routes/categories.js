@@ -1,8 +1,8 @@
 const express = require('express');
-const db = require('../models/db'); // Importa la conexión a la base de datos
+const { db } = require('../models/db'); // Importa la conexión a la base de datos
 const router = express.Router();
 
-// Obtener todas las categorías
+// Obtener todas las categorías (GET)
 router.get('/', (req, res) => {
     const query = `
         SELECT c.* 
@@ -18,7 +18,7 @@ router.get('/', (req, res) => {
     });
 });
 
-// Obtener una categoría por ID
+// Obtener una categoría por ID (GET BY ID)
 router.get('/:id', (req, res) => {
     const { id } = req.params;
 
@@ -39,28 +39,25 @@ router.get('/:id', (req, res) => {
     });
 });
 
-// Crear una nueva categoría
+// Crear una nueva categoría (POST)
 router.post('/', (req, res) => {
     const { name, description } = req.body;
 
     if (!name) {
-        return res.status(400).send('El campo "name" es obligatorio');
+        return res.status(400).send('El nombre de la categoria es obligatorio');
     }
 
     const query = `
-        INSERT INTO categories (name, description, created_at, updated_at)
-        VALUES (?, ?, NOW(), NOW())
+        INSERT INTO categories (name, description)
+        VALUES (?, ?)
     `;
 
     db.query(query, [name, description], (err, result) => {
         if (err) {
-            console.error('Error al crear la categoría:', err.sqlMessage || err.message);
-            return res.status(500).json({
-                error: 'Error interno del servidor',
-                details: err.sqlMessage || err.message
-            });
+            console.error('Error al crear la categoria:', err);
+            return res.status(500).send('Error interno del servidor');
         }
-        res.status(201).send({ id: result.insertId, message: 'Categoría creada exitosamente' });
+        res.status(201).send({ id: result.insertId, message: 'Categoria creada exitosamente' });
     });
 });
 
@@ -76,7 +73,7 @@ router.put('/:id', (req, res) => {
 
     const query = `
         UPDATE categories
-        SET name = ?, description = ?, updated_at = NOW()
+        SET name = ?, description = ?
         WHERE id = ?
     `;
 
@@ -89,36 +86,6 @@ router.put('/:id', (req, res) => {
             return res.status(404).send('Categoría no encontrada');
         }
         res.status(200).send('Categoría actualizada exitosamente');
-    });
-});
-
-// Actualizar parcialmente una categoría (PATCH)
-router.patch('/:id', (req, res) => {
-    const { id } = req.params;
-    const fields = req.body;
-
-    if (Object.keys(fields).length === 0) {
-        return res.status(400).send('No se proporcionaron campos para actualizar');
-    }
-
-    const columns = Object.keys(fields).map(key => `${key} = ?`).join(', ');
-    const values = Object.values(fields);
-
-    const query = `
-        UPDATE categories
-        SET ${columns}, updated_at = NOW()
-        WHERE id = ?
-    `;
-
-    db.query(query, [...values, id], (err, result) => {
-        if (err) {
-            console.error('Error al actualizar parcialmente la categoría:', err);
-            return res.status(500).send('Error interno del servidor');
-        }
-        if (result.affectedRows === 0) {
-            return res.status(404).send('Categoría no encontrada');
-        }
-        res.status(200).send('Categoría actualizada parcialmente');
     });
 });
 

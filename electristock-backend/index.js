@@ -1,6 +1,6 @@
 require('dotenv').config(); // Carga las variables de entorno desde .env
 
-const app = require('./src/app'); // Asegúrate de que estés importando correctamente `app.js`
+const app = require('./src/app');
 
 const PORT = process.env.PORT || 3000;
 
