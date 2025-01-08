@@ -12,9 +12,19 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-    // Limpiar la tabla de categorías antes de cada prueba
+    // Limpiar la tabla de categorías antes de cada prueba, pero dejar al menos una categoría
     await new Promise((resolve, reject) => {
-        db.query('DELETE FROM categories', (err) => {
+        db.query('DELETE FROM categories WHERE id > 1', (err) => {
+            if (err) {
+                return reject(err);
+            }
+            resolve();
+        });
+    });
+
+    // Asegurarse de que al menos una categoría exista
+    await new Promise((resolve, reject) => {
+        db.query('INSERT INTO categories (id, name, description) VALUES (1, "Default Category", "This is a default category") ON DUPLICATE KEY UPDATE name = VALUES(name)', (err) => {
             if (err) {
                 return reject(err);
             }
@@ -25,7 +35,7 @@ beforeEach(async () => {
 
 describe('Rutas de categorías', () => {
     /**
-     * Prueba que la ruta GET /categories devuelva todas las categorías.
+     * Prueba que la ruta GET /categories debería devolver todas las categorías.
      * @async
      * @test
      */
@@ -36,7 +46,7 @@ describe('Rutas de categorías', () => {
     });
 
     /**
-     * Prueba que la ruta GET /categories/:id devuelva una categoría por su ID.
+     * Prueba que la ruta GET /categories/:id debería devolver una categoría por su ID.
      * @async
      * @test
      */
@@ -55,7 +65,7 @@ describe('Rutas de categorías', () => {
     });
 
     /**
-     * Prueba que la ruta POST /categories cree una nueva categoría.
+     * Prueba que la ruta POST /categories debería crear una nueva categoría.
      * @async
      * @test
      */
@@ -72,7 +82,7 @@ describe('Rutas de categorías', () => {
     });
 
     /**
-     * Prueba que la ruta PUT /categories/:id actualice una categoría existente.
+     * Prueba que la ruta PUT /categories/:id debería actualizar una categoría existente.
      * @async
      * @test
      */
@@ -100,7 +110,7 @@ describe('Rutas de categorías', () => {
     });
 
     /**
-     * Prueba que la ruta DELETE /categories/:id elimine una categoría existente.
+     * Prueba que la ruta DELETE /categories/:id debería eliminar una categoría existente.
      * @async
      * @test
      */

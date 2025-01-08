@@ -12,9 +12,19 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-    // Limpiar la tabla de proveedores antes de cada prueba
+    // Limpiar la tabla de proveedores antes de cada prueba, pero dejar al menos un proveedor
     await new Promise((resolve, reject) => {
-        db.query('DELETE FROM suppliers', (err) => {
+        db.query('DELETE FROM suppliers WHERE id > 1', (err) => {
+            if (err) {
+                return reject(err);
+            }
+            resolve();
+        });
+    });
+
+    // Asegurarse de que al menos un proveedor exista
+    await new Promise((resolve, reject) => {
+        db.query('INSERT INTO suppliers (id, name, contact_name, contact_email, contact_phone, address) VALUES (1, "Default Supplier", "Default Contact", "default@example.com", "0000000000", "Default Address") ON DUPLICATE KEY UPDATE name = VALUES(name)', (err) => {
             if (err) {
                 return reject(err);
             }
@@ -23,9 +33,9 @@ beforeEach(async () => {
     });
 });
 
-describe('Rutas de proveedores', () => {
+describe('Rutas de Proveedores', () => {
     /**
-     * Prueba que la ruta GET /suppliers devuelva todos los proveedores.
+     * Prueba que la ruta GET /suppliers debería devolver todos los proveedores.
      * @async
      * @test
      */
@@ -36,7 +46,7 @@ describe('Rutas de proveedores', () => {
     });
 
     /**
-     * Prueba que la ruta GET /suppliers/:id devuelva un proveedor por su ID.
+     * Prueba que la ruta GET /suppliers/:id debería devolver un proveedor por su ID.
      * @async
      * @test
      */
@@ -58,7 +68,7 @@ describe('Rutas de proveedores', () => {
     });
 
     /**
-     * Prueba que la ruta POST /suppliers cree un nuevo proveedor.
+     * Prueba que la ruta POST /suppliers debería crear un nuevo proveedor.
      * @async
      * @test
      */
@@ -78,7 +88,7 @@ describe('Rutas de proveedores', () => {
     });
 
     /**
-     * Prueba que la ruta PUT /suppliers/:id actualice un proveedor existente.
+     * Prueba que la ruta PUT /suppliers/:id debería actualizar un proveedor existente.
      * @async
      * @test
      */
@@ -112,7 +122,7 @@ describe('Rutas de proveedores', () => {
     });
 
     /**
-     * Prueba que la ruta DELETE /suppliers/:id elimine un proveedor existente.
+     * Prueba que la ruta DELETE /suppliers/:id debería eliminar un proveedor existente.
      * @async
      * @test
      */
