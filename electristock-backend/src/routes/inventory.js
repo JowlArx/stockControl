@@ -45,6 +45,55 @@ router.get('/:id', (req, res) => {
         res.status(200).json(results[0]);
     });
 });
+    
+// Obtener una inventario por product_code (GET BY P.CODE)
+router.get('/code/:product_code', (req, res) => {
+    const { product_code } = req.params;
+
+    const query = `
+        SELECT i.*, p.name AS product_name, p.product_code, p.description, p.price, p.unit, c.name AS category_name, s.name AS supplier_name
+        FROM inventory i
+        LEFT JOIN products p ON i.product_code = p.product_code
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN suppliers s ON p.supplier_id = s.id
+        WHERE i.product_code = ?
+    `;
+
+    db.query(query, [product_code], (err, results) => {
+        if (err) {
+            console.error('Error al obtener el registro de inventario:', err);
+            return res.status(500).send('Error interno del servidor');
+        }
+        if (results.length === 0) {
+            return res.status(404).send('Registro de inventario no encontrado');
+        }
+        res.status(200).json(results[0]);
+    });
+});
+// Obtener registros de inventario por ubicación (GET BY LOCATION)
+router.get('/location/:location', (req, res) => {
+    const { location } = req.params;
+
+    const query = `
+        SELECT i.*, p.name AS product_name, p.product_code, p.description, p.price, p.unit, c.name AS category_name, s.name AS supplier_name
+        FROM inventory i
+        LEFT JOIN products p ON i.product_code = p.product_code
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN suppliers s ON p.supplier_id = s.id
+        WHERE i.location = ?
+    `;
+
+    db.query(query, [location], (err, results) => {
+        if (err) {
+            console.error('Error al obtener los registros de inventario por ubicación:', err);
+            return res.status(500).send('Error interno del servidor');
+        }
+        if (results.length === 0) {
+            return res.status(404).send('No se encontraron registros de inventario para la ubicación especificada');
+        }
+        res.status(200).json(results);
+    });
+});
 
 // Crear un nuevo registro de inventario (POST)
 router.post('/', (req, res) => {

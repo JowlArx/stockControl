@@ -1,3 +1,7 @@
+    # ACLARACION
+    Este proyecto contiene aportes de GitHub copilot <3
+    
+        
     # ElectriStock
 
     ElectriStock es una aplicación para la gestión de inventarios y proveedores, desarrollada con una arquitectura de frontend y backend separada. El frontend está construido con React y Vite, mientras que el backend utiliza Express y MySQL.

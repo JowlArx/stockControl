@@ -61,7 +61,6 @@ router.post('/', (req, res) => {
     });
 });
 
-
 // Actualizar una categoría (PUT)
 router.put('/:id', (req, res) => {
     const { id } = req.params;
