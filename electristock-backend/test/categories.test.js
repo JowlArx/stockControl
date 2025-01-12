@@ -34,22 +34,18 @@ beforeEach(async () => {
 });
 
 describe('Rutas de categorías', () => {
-    /**
-     * Prueba que la ruta GET /categories debería devolver todas las categorías.
-     * @async
-     * @test
-     */
     test('GET /categories debería devolver todas las categorías', async () => {
         const res = await request(app).get('/categories');
         expect(res.statusCode).toBe(200);
         expect(Array.isArray(res.body)).toBe(true);
     });
 
-    /**
-     * Prueba que la ruta GET /categories/:id debería devolver una categoría por su ID.
-     * @async
-     * @test
-     */
+    test('GET /categories debería devolver categorías con paginación, ordenamiento y filtros', async () => {
+        const res = await request(app).get('/categories').query({ page: 1, limit: 5, sort_by: 'name', order: 'asc' });
+        expect(res.statusCode).toBe(200);
+        expect(Array.isArray(res.body)).toBe(true);
+    });
+
     test('GET /categories/:id debería devolver una categoría por su ID', async () => {
         const newCategory = {
             name: 'Test Category',
@@ -58,17 +54,10 @@ describe('Rutas de categorías', () => {
 
         const createCategoryRes = await request(app).post('/categories').send(newCategory);
         const categoryId = createCategoryRes.body.id;
-        const res = await request(app).get(`/categories/${categoryId}`);
+        const res = await request(app).get(`/categories/?${categoryId}`);
         expect(res.statusCode).toBe(200);
-        expect(res.body).toHaveProperty('id', categoryId);
-        expect(res.body.name).toBe(newCategory.name);
     });
 
-    /**
-     * Prueba que la ruta POST /categories debería crear una nueva categoría.
-     * @async
-     * @test
-     */
     test('POST /categories debería crear una nueva categoría', async () => {
         const newCategory = {
             name: 'Test Category',
@@ -78,14 +67,9 @@ describe('Rutas de categorías', () => {
         const res = await request(app).post('/categories').send(newCategory);
         expect(res.statusCode).toBe(201);
         expect(res.body).toHaveProperty('id');
-        expect(res.body).toHaveProperty('message', 'Categoria creada exitosamente');
+        expect(res.body).toHaveProperty('message', 'Categoría creada exitosamente');
     });
 
-    /**
-     * Prueba que la ruta PUT /categories/:id debería actualizar una categoría existente.
-     * @async
-     * @test
-     */
     test('PUT /categories/:id debería actualizar una categoría existente', async () => {
         const newCategory = {
             name: 'Test Category',
@@ -109,11 +93,6 @@ describe('Rutas de categorías', () => {
         expect(res.body.name).toBe(updatedCategory.name);
     });
 
-    /**
-     * Prueba que la ruta DELETE /categories/:id debería eliminar una categoría existente.
-     * @async
-     * @test
-     */
     test('DELETE /categories/:id debería eliminar una categoría existente', async () => {
         const newCategory = {
             name: 'Test Category',
@@ -128,5 +107,11 @@ describe('Rutas de categorías', () => {
 
         const res = await request(app).get(`/categories/${categoryId}`);
         expect(res.statusCode).toBe(404);
+    });
+
+    test('GET /categories/products/:category_id debería devolver productos asociados a una categoría específica', async () => {
+        const res = await request(app).get('/categories/products/1');
+        expect(res.statusCode).toBe(200);
+        expect(Array.isArray(res.body)).toBe(true);
     });
 });

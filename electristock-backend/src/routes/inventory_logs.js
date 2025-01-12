@@ -15,6 +15,74 @@ router.get('/', (req, res) => {
     });
 });
 
+// Movimientos del inventario para un producto específico (GET /inventory_logs/by-product/:product_code)
+router.get('/byproduct/', (req, res) => {
+    const { product_code } = req.params;
+
+    const query = `
+        SELECT il.*, p.name AS product_name, p.product_code, p.description, p.price, p.unit, c.name AS category_name, s.name AS supplier_name
+        FROM inventory_logs il
+        JOIN products p ON il.product_code = p.product_code
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN suppliers s ON p.supplier_id = s.id
+        WHERE il.product_code = ?
+    `;
+
+    db.query(query, [product_code], (err, results) => {
+        if (err) {
+            console.error('Error al obtener los movimientos del inventario:', err);
+            return res.status(500).send('Error interno del servidor');
+        }
+        res.status(200).json(results);
+    });
+});
+
+
+// Filtrar logs por fecha, acción o cantidad (GET /inventory_logs/filter)
+router.get('/filter', (req, res) => {
+    const { start_date, end_date, action, min_quantity, max_quantity, page = 1, limit = 10, sort_by = 'created_at', order = 'desc' } = req.query;
+    let query = `
+        SELECT il.*, p.name AS product_name, p.product_code, p.description, p.price, p.unit, c.name AS category_name, s.name AS supplier_name
+        FROM inventory_logs il
+        JOIN products p ON il.product_code = p.product_code
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN suppliers s ON p.supplier_id = s.id
+        WHERE 1=1
+    `;
+    const params = [];
+
+    if (start_date) {
+        query += ' AND il.created_at >= ?';
+        params.push(start_date);
+    }
+    if (end_date) {
+        query += ' AND il.created_at <= ?';
+        params.push(end_date);
+    }
+    if (action) {
+        query += ' AND il.action = ?';
+        params.push(action);
+    }
+    if (min_quantity) {
+        query += ' AND il.quantity >= ?';
+        params.push(min_quantity);
+    }
+    if (max_quantity) {
+        query += ' AND il.quantity <= ?';
+        params.push(max_quantity);
+    }
+
+    query += ` ORDER BY ${sort_by} ${order} LIMIT ? OFFSET ?`;
+    params.push(parseInt(limit), (parseInt(page) - 1) * parseInt(limit));
+
+    db.query(query, params, (err, results) => {
+        if (err) {
+            console.error('Error al filtrar logs de inventario:', err);
+            return res.status(500).send('Error interno del servidor');
+        }
+        res.status(200).json(results);
+    });
+});
 
 // Obtener un registro de log por ID
 router.get('/:id', (req, res) => {

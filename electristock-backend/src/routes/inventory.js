@@ -2,6 +2,43 @@ const express = require('express');
 const { db } = require('../models/db'); // Importa la conexión a la base de datos
 const router = express.Router();
 
+// Obtener un registro de inventario por ID o product_code (GET BY ID OR P.CODE)
+router.get('/search', (req, res) => {
+    const { id, product_code } = req.query;
+
+    if (!id && !product_code) {
+        return res.status(400).send('Debe proporcionar "id" o "product_code" como parámetro de consulta');
+    }
+
+    let query = `
+        SELECT i.*, p.name AS product_name, p.product_code, p.description, p.price, p.unit, c.name AS category_name, s.name AS supplier_name
+        FROM inventory i
+        LEFT JOIN products p ON i.product_code = p.product_code
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN suppliers s ON p.supplier_id = s.id
+    `;
+    const values = [];
+
+    if (id) {
+        query += ' WHERE i.id = ?';
+        values.push(id);
+    } else if (product_code) {
+        query += ' WHERE i.product_code = ?';
+        values.push(product_code);
+    }
+
+    db.query(query, values, (err, results) => {
+        if (err) {
+            console.error('Error al obtener el registro de inventario:', err);
+            return res.status(500).send('Error interno del servidor');
+        }
+        if (results.length === 0) {
+            return res.status(404).send('Registro de inventario no encontrado');
+        }
+        res.status(200).json(results[0]);
+    });
+});
+
 // Obtener todos los registros de inventario (GET)
 router.get('/', (req, res) => {
     const query = `
@@ -21,55 +58,43 @@ router.get('/', (req, res) => {
     });
 });
 
-// Obtener un registro de inventario por ID (GET BY ID)
-router.get('/:id', (req, res) => {
-    const { id } = req.params;
-
+// Lista de productos con su cantidad actual (GET /inventory/stock-status)
+router.get('/stockStatus', (req, res) => {
     const query = `
-        SELECT i.*, p.name AS product_name, p.product_code, p.description, p.price, p.unit, c.name AS category_name, s.name AS supplier_name
+        SELECT p.name, i.stock_quantity
         FROM inventory i
-        LEFT JOIN products p ON i.product_code = p.id
-        LEFT JOIN categories c ON p.category_id = c.id
-        LEFT JOIN suppliers s ON p.supplier_id = s.id
-        WHERE i.id = ?
+        JOIN products p ON i.product_code = p.product_code
     `;
 
-    db.query(query, [id], (err, results) => {
+    db.query(query, (err, results) => {
         if (err) {
-            console.error('Error al obtener el registro de inventario:', err);
+            console.error('Error al obtener el estado del stock:', err);
             return res.status(500).send('Error interno del servidor');
         }
-        if (results.length === 0) {
-            return res.status(404).send('Registro de inventario no encontrado');
+        res.status(200).json(results);
+    });
+});
+
+// Resumen del inventario (GET /inventory/summary)
+router.get('/summary', (req, res) => {
+    const query = `
+        SELECT 
+            COUNT(*) AS total_products,
+            SUM(stock_quantity) AS total_units,
+            SUM(stock_quantity * p.price) AS total_value
+        FROM inventory i
+        JOIN products p ON i.product_code = p.product_code
+    `;
+
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error('Error al obtener el resumen del inventario:', err);
+            return res.status(500).send('Error interno del servidor');
         }
         res.status(200).json(results[0]);
     });
 });
-    
-// Obtener una inventario por product_code (GET BY P.CODE)
-router.get('/code/:product_code', (req, res) => {
-    const { product_code } = req.params;
 
-    const query = `
-        SELECT i.*, p.name AS product_name, p.product_code, p.description, p.price, p.unit, c.name AS category_name, s.name AS supplier_name
-        FROM inventory i
-        LEFT JOIN products p ON i.product_code = p.product_code
-        LEFT JOIN categories c ON p.category_id = c.id
-        LEFT JOIN suppliers s ON p.supplier_id = s.id
-        WHERE i.product_code = ?
-    `;
-
-    db.query(query, [product_code], (err, results) => {
-        if (err) {
-            console.error('Error al obtener el registro de inventario:', err);
-            return res.status(500).send('Error interno del servidor');
-        }
-        if (results.length === 0) {
-            return res.status(404).send('Registro de inventario no encontrado');
-        }
-        res.status(200).json(results[0]);
-    });
-});
 // Obtener registros de inventario por ubicación (GET BY LOCATION)
 router.get('/location/:location', (req, res) => {
     const { location } = req.params;
@@ -115,6 +140,41 @@ router.post('/', (req, res) => {
         }
         res.status(201).send({ id: result.insertId, message: 'Registro de inventario creado exitosamente' });
     });
+});
+
+
+// Actualizaciones masivas en el inventario (PATCH /inventory/update-massive)
+router.patch('/updateMassive', (req, res) => {
+    const updates = req.body; // Array de objetos { product_code, quantity }
+
+    if (!Array.isArray(updates) || updates.length === 0) {
+        return res.status(400).send('El cuerpo de la solicitud debe ser un array de actualizaciones');
+    }
+
+    const queries = updates.map(update => {
+        return new Promise((resolve, reject) => {
+            const query = `
+                UPDATE inventory
+                SET stock_quantity = stock_quantity + ?
+                WHERE product_code = ?
+            `;
+            db.query(query, [update.quantity, update.product_code], (err, result) => {
+                if (err) {
+                    return reject(err);
+                }
+                resolve(result);
+            });
+        });
+    });
+
+    Promise.all(queries)
+        .then(results => {
+            res.status(200).send('Actualizaciones masivas realizadas exitosamente');
+        })
+        .catch(err => {
+            console.error('Error al realizar actualizaciones masivas:', err);
+            res.status(500).send('Error interno del servidor');
+        });
 });
 
 // Actualizar un registro de inventario (PATCH)

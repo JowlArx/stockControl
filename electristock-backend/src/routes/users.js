@@ -19,6 +19,79 @@ router.get('/', (req, res) => {
     });
 });
 
+// Cambiar el rol de un usuario (PATCH /users/:id/role)
+router.patch('/:id/role', (req, res) => {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    const allowedRoles = ['admin', 'user', 'supplier']; // Define los roles permitidos
+
+    if (!role) {
+        return res.status(400).send('El campo "role" es obligatorio');
+    }
+
+    if (!allowedRoles.includes(role)) {
+        return res.status(400).send('El rol proporcionado no es válido');
+    }
+
+    const query = `
+        UPDATE users
+        SET role = ?, updated_at = NOW()
+        WHERE id = ?
+    `;
+
+    db.query(query, [role, id], (err, result) => {
+        if (err) {
+            console.error('Error al actualizar el rol del usuario:', err);
+            return res.status(500).send(`Error interno del servidor: ${err.message}`);
+        }        
+        if (result.affectedRows === 0) {
+            return res.status(404).send('Usuario no encontrado');
+        }
+        res.status(200).send('Rol del usuario actualizado exitosamente');
+    });
+});
+
+// Buscar usuarios por nombre, correo electrónico o rol (GET /users/search)
+router.get('/search', (req, res) => {
+    const { username, full_name, email, role  } = req.query;
+    let query = `   
+        SELECT u.*
+        FROM users u
+        WHERE 1=1
+    `;
+    const params = [];
+
+    if (username) {
+        query += ' AND username LIKE ?';
+        params.push(`%${username}%`);
+    }
+    if (email) {
+        query += ' AND email LIKE ?';
+        params.push(`%${email}%`);  
+    }
+    if (email) {
+        query += ' AND email LIKE ?';
+        params.push(`%${email}%`);
+    }
+    if (role) {
+        query += ' AND role = ?';
+        params.push(role);
+    }
+    if (full_name) {
+        query += ' AND full_name LIKE ?';
+        params.push(`%${full_name}%`);
+    }
+
+    db.query(query, params, (err, results) => {
+        if (err) {
+            console.error('Error al buscar usuarios:', err);
+            return res.status(500).send('Error interno del servidor');
+        }
+        res.status(200).json(results);
+    });
+});
+
 // Obtener un usuario por ID (GET BY ID)
 router.get('/:id', (req, res) => {
     const { id } = req.params;
@@ -73,6 +146,7 @@ router.post('/', async (req, res) => {
         res.status(500).send('Error interno del servidor');
     }
 });
+
 
 // Actualizar un usuario (PUT)
 router.put('/:id', async (req, res) => {

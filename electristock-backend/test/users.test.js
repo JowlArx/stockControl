@@ -34,44 +34,24 @@ beforeEach(async () => {
 });
 
 describe('Rutas de Usuarios', () => {
-    /**
-     * Prueba que la ruta GET /users debería devolver todos los usuarios.
-     * @async
-     * @test
-     */
-    test('GET /suppliers debería devolver todos los usuarios', async () => {
+    test('GET /users debería devolver todos los usuarios', async () => {
         const res = await request(app).get('/users');
         expect(res.statusCode).toBe(200);
         expect(Array.isArray(res.body)).toBe(true);
     });
 
-    /**
-     * Prueba que la ruta GET /users/:id debería devolver un usuario por su ID.
-     * @async
-     * @test
-     */
-    test('GET /users/:id debería devolver un usuario por su ID', async () => {
-        const newUser = {
-            username: 'jest_user',
-            password: 'securePassword123',
-            full_name: 'Jest Test User',
-            email: 'jest_user@example.com',
-            role: 'user',
-        };
-
-        const createUserRes = await request(app).post('/users').send(newUser);
-        const userId = createUserRes.body.id;
-        const res = await request(app).get(`/users/${userId}`);
+    test('GET /users debería devolver usuarios con paginación, ordenamiento y filtros', async () => {
+        const res = await request(app).get('/users').query({ page: 1, limit: 5, sort_by: 'username', order: 'asc' });
         expect(res.statusCode).toBe(200);
-        expect(res.body).toHaveProperty('id', userId);
-        expect(res.body.username).toBe(newUser.username);
+        expect(Array.isArray(res.body)).toBe(true);
     });
 
-    /**
-     * Prueba que la ruta POST /users debería crear un nuevo usuario.
-     * @async
-     * @test
-     */
+    test('GET /users/:id debería devolver un usuario por su ID', async () => {
+        const res = await request(app).get('/users/1');
+        expect(res.statusCode).toBe(200);
+        expect(res.body).toHaveProperty('id', 1);
+    });
+
     test('POST /users debería crear un nuevo usuario', async () => {
         const newUser = {
             username: 'test_user',
@@ -87,11 +67,6 @@ describe('Rutas de Usuarios', () => {
         expect(res.body).toHaveProperty('message', 'Usuario creado exitosamente');
     });
 
-    /**
-     * Prueba que la ruta PUT /users/:id debería actualizar un usuario existente.
-     * @async
-     * @test
-     */
     test('PUT /users/:id debería actualizar un usuario existente', async () => {
         const newUser = {
             username: 'test_user',
@@ -105,10 +80,10 @@ describe('Rutas de Usuarios', () => {
         const userId = createUserRes.body.id;
 
         const updatedUser = {
-            username: `updated_user_${Date.now()}`,
+            username: 'updated_user',
             password: 'newSecurePassword123',
             full_name: 'Updated Test User',
-            email: `updated_${Date.now()}@example.com`,
+            email: 'updated_user@example.com',
             role: 'admin',
         };
 
@@ -123,11 +98,6 @@ describe('Rutas de Usuarios', () => {
         expect(res.body.role).toBe(updatedUser.role);
     });
 
-    /**
-     * Prueba que la ruta DELETE /users/:id debería eliminar un usuario existente.
-     * @async
-     * @test
-     */
     test('DELETE /users/:id debería eliminar un usuario existente', async () => {
         const newUser = {
             username: 'test_user',
@@ -145,5 +115,36 @@ describe('Rutas de Usuarios', () => {
 
         const res = await request(app).get(`/users/${userId}`);
         expect(res.statusCode).toBe(404);
+    });
+
+    test('PATCH /users/:id/role debería cambiar el rol de un usuario', async () => {
+        const newUser = {
+            username: 'test_user',
+            password: 'securePassword123',
+            full_name: 'Test User',
+            email: 'test_user@example.com',
+            role: 'user',
+        };
+
+        const createUserRes = await request(app).post('/users').send(newUser);
+        const userId = createUserRes.body.id;
+
+        const updatedRole = {
+            role: 'admin',
+        };
+
+        const updateRoleRes = await request(app).patch(`/users/${userId}/role`).send(updatedRole);
+        expect(updateRoleRes.statusCode).toBe(200);
+
+        const res = await request(app).get(`/users/${userId}`);
+        expect(res.statusCode).toBe(200);
+        expect(res.body).toHaveProperty('id', userId);
+        expect(res.body.role).toBe(updatedRole.role);
+    });
+
+    test('GET /users/search debería buscar usuarios por nombre, correo electrónico o rol', async () => {
+        const res = await request(app).get('/users/search').query({ name: 'default_user' });
+        expect(res.statusCode).toBe(200);
+        expect(Array.isArray(res.body)).toBe(true);
     });
 });

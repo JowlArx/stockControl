@@ -18,25 +18,61 @@ router.get('/', (req, res) => {
     });
 });
 
-// Obtener un proveedor por ID (GET BY ID)
-router.get('/:id', (req, res) => {
+// Obtener un proveedor por ID o buscar proveedores por nombre o contacto (GET /suppliers/:id o GET /suppliers?name=&contact=)
+router.get('/:id?', (req, res) => {
     const { id } = req.params;
+    const { name, contact } = req.query;
 
-    const query = `
+    let query = `
         SELECT s.* 
         FROM suppliers s
-        WHERE s.id = ?
+        WHERE 1=1
     `;
+    const params = [];
 
-    db.query(query, [id], (err, results) => {
+    if (id) {
+        query += ' AND s.id = ?';
+        params.push(id);
+    }
+    if (name) {
+        query += ' AND s.name LIKE ?';
+        params.push(`%${name}%`);
+    }
+    if (contact) {
+        query += ' AND (s.contact_name LIKE ? OR s.contact_email LIKE ? OR s.contact_phone LIKE ?)';
+        params.push(`%${contact}%`, `%${contact}%`, `%${contact}%`);
+    }
+
+    db.query(query, params, (err, results) => {
         if (err) {
-            console.error('Error al obtener el proveedor:', err);
+            console.error('Error al obtener proveedores:', err);
             return res.status(500).send('Error interno del servidor');
         }
-        if (results.length === 0) {
+        if (id && results.length === 0) {
             return res.status(404).send('Proveedor no encontrado');
         }
-        res.status(200).json(results[0]);
+        res.status(200).json(id ? results[0] : results);
+    });
+});
+
+// Lista todos los productos suministrados por un proveedor específico (GET /suppliers/products/:supplier_id)
+router.get('/products/:supplier_id', (req, res) => {
+    const { supplier_id } = req.params;
+
+    const query = `
+        SELECT p.*, c.name AS category_name, s.name AS supplier_name 
+        FROM products p
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN suppliers s ON p.supplier_id = s.id
+        WHERE p.supplier_id = ?
+    `;
+
+    db.query(query, [supplier_id], (err, results) => {
+        if (err) {
+            console.error('Error al obtener productos por proveedor:', err);
+            return res.status(500).send('Error interno del servidor');
+        }
+        res.status(200).json(results);
     });
 });
 

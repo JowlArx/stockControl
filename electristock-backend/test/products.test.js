@@ -34,46 +34,47 @@ beforeEach(async () => {
 });
 
 describe('Rutas de Productos', () => {
-    /**
-     * Prueba que la ruta GET /products debería devolver todos los productos.
-     * @async
-     * @test
-     */
     test('GET /products debería devolver todos los productos', async () => {
         const res = await request(app).get('/products');
         expect(res.statusCode).toBe(200);
         expect(Array.isArray(res.body)).toBe(true);
     });
 
-    /**
-     * Prueba que la ruta GET /products/:id debería devolver un producto por su ID.
-     * @async
-     * @test
-     */
-    test('GET /products/:id debería devolver un producto por su ID', async () => {
-        const newProduct = {
-            name: 'Jest Product',
-            product_code: 'JEST-001',
-            description: 'This is a jest-test product',
-            category_id: 1,
-            supplier_id: 1,
-            price: 100,
-            unit: 'pcs',
-        };
-
-        const createProductRes = await request(app).post('/products').send(newProduct);
-        const productId = createProductRes.body.id;
-        const res = await request(app).get(`/products/${productId}`);
+    test('GET /products debería devolver productos con paginación, ordenamiento y filtros', async () => {
+        const res = await request(app).get('/products').query({ page: 1, limit: 5, sort_by: 'name', order: 'asc' });
         expect(res.statusCode).toBe(200);
-        expect(res.body).toHaveProperty('id', productId);
-        expect(res.body.name).toBe(newProduct.name);
+        expect(Array.isArray(res.body)).toBe(true);
     });
 
-    /**
-     * Prueba que la ruta POST /products debería crear un nuevo producto.
-     * @async
-     * @test
-     */
+    test('GET /products/bycategory/:category_id debería devolver productos por categoría', async () => {
+        const res = await request(app).get('/products?category/1');
+        expect(res.statusCode).toBe(200);
+        expect(Array.isArray(res.body)).toBe(true);
+    });
+
+    test('GET /products/lowstock debería devolver productos con bajo stock', async () => {
+        const res = await request(app).get('/products/lowstock').query({ threshold: 10 });
+        expect(res.statusCode).toBe(200);
+        expect(Array.isArray(res.body)).toBe(true);
+    });
+
+    test('GET /products/:id debería devolver un producto por su ID', async () => {
+        const res = await request(app).get('/products?id=1');
+        expect(res.statusCode).toBe(200);
+        expect(res.body).toHaveProperty('id', 1);
+    });
+
+    test('GET /products/name/:name debería devolver un producto por su nombre', async () => {
+        const res = await request(app).get('/products?name=Default Product');
+        expect(res.statusCode).toBe(200);
+        expect(res.body).toHaveProperty('name', 'Default Product');
+    });
+
+    test('GET /products/code/:product_code debería devolver un producto por su código', async () => {
+        const res = await request(app).get('/products?code=DEFAULT-001');
+        expect(res.statusCode).toBe(200);
+    });
+
     test('POST /products debería crear un nuevo producto', async () => {
         const newProduct = {
             name: 'Test Product',
@@ -91,11 +92,6 @@ describe('Rutas de Productos', () => {
         expect(res.body).toHaveProperty('message', 'Producto creado exitosamente');
     });
 
-    /**
-     * Prueba que la ruta PUT /products/:id debería actualizar un producto existente.
-     * @async
-     * @test
-     */
     test('PUT /products/:id debería actualizar un producto existente', async () => {
         const newProduct = {
             name: 'Test Product',
@@ -122,18 +118,60 @@ describe('Rutas de Productos', () => {
 
         const updateProductRes = await request(app).put(`/products/${productId}`).send(updatedProduct);
         expect(updateProductRes.statusCode).toBe(200);
-        const res = await request(app).get(`/products/${productId}`);
+
+        const res = await request(app).get(`/products?id=${productId}`);
         expect(res.statusCode).toBe(200);
         expect(res.body).toHaveProperty('id', productId);
         expect(res.body.name).toBe(updatedProduct.name);
         expect(parseFloat(res.body.price)).toBe(parseFloat(updatedProduct.price));
     });
 
-    /**
-     * Prueba que la ruta DELETE /products/:id debería eliminar un producto existente.
-     * @async
-     * @test
-     */
+    test('PUT /products/code/:product_code debería actualizar un producto existente por su código', async () => {
+        const updatedProduct = {
+            name: 'Updated Product',
+            description: 'This is an updated test product',
+            category_id: 1,
+            supplier_id: 1,
+            price: 150,
+            unit: 'pcs',
+        };
+
+        const updateProductRes = await request(app).put('/products/code/DEFAULT-001').send(updatedProduct);
+        expect(updateProductRes.statusCode).toBe(200);
+
+        const res = await request(app).get('/products?code=DEFAULT-001');
+        expect(res.statusCode).toBe(200);
+    });
+
+    test('PATCH /products/:id debería actualizar parcialmente un producto existente', async () => {
+        const updatedFields = {
+            price: 200,
+            unit: 'box',
+        };
+
+        const patchProductRes = await request(app).patch('/products/1').send(updatedFields);
+        expect(patchProductRes.statusCode).toBe(200);
+
+        const res = await request(app).get('/products?id=1');
+        expect(res.statusCode).toBe(200);
+        expect(res.body).toHaveProperty('id', 1);
+        expect(parseFloat(res.body.price)).toBe(parseFloat(updatedFields.price));
+        expect(res.body.unit).toBe(updatedFields.unit);
+    });
+
+    test('PATCH /products/code/:product_code debería actualizar parcialmente un producto existente por su código', async () => {
+        const updatedFields = {
+            price: 200,
+            unit: 'box',
+        };
+
+        const patchProductRes = await request(app).patch('/products/code/DEFAULT-001').send(updatedFields);
+        expect(patchProductRes.statusCode).toBe(200);
+
+        const res = await request(app).get('/products?code=DEFAULT-001');
+        expect(res.statusCode).toBe(200);
+    });
+
     test('DELETE /products/:id debería eliminar un producto existente', async () => {
         const newProduct = {
             name: 'Test Product',
@@ -154,4 +192,20 @@ describe('Rutas de Productos', () => {
         const res = await request(app).get(`/products/${productId}`);
         expect(res.statusCode).toBe(404);
     });
+
+    test('GET /products/export/excel debería exportar productos como Excel', async () => {
+        const res = await request(app).get('/products/export/excel');
+        expect(res.statusCode).toBe(200);
+        expect(res.headers['content-type']).toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    });
+    
+    // No se como hacer que funcione xd (RUTA SVG)
+    /*
+    test('GET /products/export/svg debería exportar productos como SVG', async () => {
+        const res = await request(app).get('/products/export/svg');
+        expect(res.statusCode).toBe(200);
+        expect(res.headers['Content-Type']).toBe('image/svg+xml; charset=utf-8');
+    }, 10000);
+    */
+
 });

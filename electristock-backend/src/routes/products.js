@@ -1,135 +1,87 @@
 const express = require('express');
 const { db } = require('../models/db'); // Importa la conexión a la base de datos
 const excel = require('exceljs');
-const { createSVGWindow } = require('svgdom');
-const { SVG, registerWindow } = require('@svgdotjs/svg.js');
 const router = express.Router();
 
-// Obtener todos los productos (GET)
+// Obtener productos (GET)
 router.get('/', (req, res) => {
-    const query = `
-        SELECT p.*, c.name AS category_name, s.name AS supplier_name 
+    const { id, name, product_code, category_id, threshold, page = 1, limit = 10, sort_by = 'id', order = 'asc' } = req.query;
+    const offset = (page - 1) * limit;
+
+    let query = `
+        SELECT p.*, c.name AS category_name, s.name AS supplier_name, i.stock_quantity
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN suppliers s ON p.supplier_id = s.id
+        LEFT JOIN inventory i ON p.product_code = i.product_code
     `;
+    const conditions = [];
+    const params = [];
 
-    db.query(query, (err, results) => {
+    if (id) {
+        conditions.push('p.id = ?');
+        params.push(id);
+    }
+    if (name) {
+        conditions.push('p.name = ?');
+        params.push(name);
+    }
+    if (product_code) {
+        conditions.push('p.product_code = ?');
+        params.push(product_code);
+    }
+    if (category_id) {
+        conditions.push('p.category_id = ?');
+        params.push(category_id);
+    }
+    if (threshold) {
+        conditions.push('i.stock_quantity <= ?');
+        params.push(threshold);
+    }
+
+    if (conditions.length > 0) {
+        query += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    query += ` ORDER BY ${sort_by} ${order} LIMIT ? OFFSET ?`;
+    params.push(parseInt(limit), parseInt(offset));
+
+    db.query(query, params, (err, results) => {
         if (err) {
             console.error('Error al obtener productos:', err);
             return res.status(500).send('Error interno del servidor');
         }
-        res.status(200).json(results);
-    });
-});
-
-// Obtener productos por categoría (GET BY CATEGORY)
-router.get('/:id/products', (req, res) => {
-    const { id } = req.params;
-
-    const query = `
-        SELECT p.* 
-        FROM products p
-        WHERE p.category_id = ?
-    `;
-
-    db.query(query, [id], (err, results) => {
-        if (err) {
-            console.error('Error al obtener productos por categoría:', err);
-            return res.status(500).send('Error interno del servidor');
+        if (id || name || product_code) {
+            if (results.length === 0) {
+                return res.status(404).send('Producto no encontrado');
+            }
+            return res.status(200).json(results[0]);
         }
         res.status(200).json(results);
     });
 });
 
+
 // Obtener productos con stock por debajo de un umbral (GET LOW STOCK)
-router.get('/low-stock/:threshold', (req, res) => {
-    const { threshold } = req.params;
+router.get('/lowstock', (req, res) => {
+    const { threshold = 10, page = 1, limit = 10, sort_by = 'id', order = 'asc' } = req.query;
+    const offset = (page - 1) * limit;
 
     const query = `
         SELECT p.*, i.stock_quantity
         FROM products p
         JOIN inventory i ON p.product_code = i.product_code
         WHERE i.stock_quantity <= ?
+        ORDER BY ${sort_by} ${order}
+        LIMIT ? OFFSET ?
     `;
 
-    db.query(query, [threshold], (err, results) => {
+    db.query(query, [threshold, parseInt(limit), parseInt(offset)], (err, results) => {
         if (err) {
             console.error('Error al obtener productos con bajo stock:', err);
             return res.status(500).send('Error interno del servidor');
         }
         res.status(200).json(results);
-    });
-});
-
-// Obtener un producto por ID (GET BY ID)
-router.get('/:id', (req, res) => {
-    const { id } = req.params;
-
-    const query = `
-        SELECT p.*, c.name AS category_name, s.name AS supplier_name 
-        FROM products p
-        LEFT JOIN categories c ON p.category_id = c.id
-        LEFT JOIN suppliers s ON p.supplier_id = s.id
-        WHERE p.id = ?
-    `;
-
-    db.query(query, [id], (err, results) => {
-        if (err) {
-            console.error('Error al obtener el producto:', err);
-            return res.status(500).send('Error interno del servidor');
-        }
-        if (results.length === 0) {
-            return res.status(404).send('Producto no encontrado');
-        }
-        res.status(200).json(results[0]);
-    });
-});
-// Obtener un producto por nombre (GET BY NAME)
-router.get('/name/:name', (req, res) => {
-    const { name } = req.params;
-
-    const query = `
-        SELECT p.*, c.name AS category_name, s.name AS supplier_name 
-        FROM products p
-        LEFT JOIN categories c ON p.category_id = c.id
-        LEFT JOIN suppliers s ON p.supplier_id = s.id
-        WHERE p.name = ?
-    `;
-
-    db.query(query, [name], (err, results) => {
-        if (err) {
-            console.error('Error al obtener el producto:', err);
-            return res.status(500).send('Error interno del servidor');
-        }
-        if (results.length === 0) {
-            return res.status(404).send('Producto no encontrado');
-        }
-        res.status(200).json(results[0]);
-    });
-});
-
-// Obtener un producto por código de producto (GET BY PRODUCT CODE)
-router.get('/code/:product_code', (req, res) => {
-    const { product_code } = req.params;
-
-    const query = `
-        SELECT p.*, c.name AS category_name, s.name AS supplier_name 
-        FROM products p
-        LEFT JOIN categories c ON p.category_id = c.id
-        LEFT JOIN suppliers s ON p.supplier_id = s.id
-        WHERE p.product_code = ?
-    `;
-
-    db.query(query, [product_code], (err, results) => {
-        if (err) {
-            console.error('Error al obtener el producto:', err);
-            return res.status(500).send('Error interno del servidor');
-        }
-        if (results.length === 0) {
-            return res.status(404).send('Producto no encontrado');
-        }
-        res.status(200).json(results[0]);
     });
 });
 
@@ -176,8 +128,8 @@ router.get('/export/excel', async (req, res) => {
     });
 });
 
-// Exportar productos como SVG (GET)
-router.get('/export/svg', (req, res) => {
+//Exportar como SVG (GET)
+router.get('/export/svg', async (req, res) => {
     const query = `
         SELECT p.*, c.name AS category_name, s.name AS supplier_name 
         FROM products p
@@ -185,11 +137,15 @@ router.get('/export/svg', (req, res) => {
         LEFT JOIN suppliers s ON p.supplier_id = s.id
     `;
 
-    db.query(query, (err, results) => {
+    db.query(query, async (err, results) => {
         if (err) {
             console.error('Error al obtener productos:', err);
             return res.status(500).send('Error interno del servidor');
         }
+
+        // Importar dinámicamente los módulos ES
+        const { createSVGWindow } = await import('svgdom');
+        const { SVG, registerWindow } = await import('@svgdotjs/svg.js');
 
         const window = createSVGWindow();
         const document = window.document;
