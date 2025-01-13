@@ -2,9 +2,11 @@ const express = require('express');
 const { db } = require('../models/db'); // Importa la conexión a la base de datos
 const router = express.Router();
 const bcrypt = require('bcrypt'); // Importa bcrypt para encriptar contraseñas
+const authenticateToken = require('../middleware/auth'); // Importa el middleware de autenticación
+const authorizeRole = require('../middleware/authRole'); // Importa el middleware de autorización
 
 // Obtener todos los usuarios (GET)
-router.get('/', (req, res) => {
+router.get('/', authenticateToken, authorizeRole(['admin']), (req, res) => {
     const query = `
         SELECT u.* 
         FROM users u
@@ -20,7 +22,7 @@ router.get('/', (req, res) => {
 });
 
 // Cambiar el rol de un usuario (PATCH /users/:id/role)
-router.patch('/:id/role', (req, res) => {
+router.patch('/:id/role', authenticateToken, authorizeRole(['admin']), (req, res) => {
     const { id } = req.params;
     const { role } = req.body;
 
@@ -53,7 +55,7 @@ router.patch('/:id/role', (req, res) => {
 });
 
 // Buscar usuarios por nombre, correo electrónico o rol (GET /users/search)
-router.get('/search', (req, res) => {
+router.get('/search', authenticateToken, authorizeRole(['admin']), (req, res) => {
     const { username, full_name, email, role  } = req.query;
     let query = `   
         SELECT u.*
@@ -93,7 +95,7 @@ router.get('/search', (req, res) => {
 });
 
 // Obtener un usuario por ID (GET BY ID)
-router.get('/:id', (req, res) => {
+router.get('/:id', authenticateToken, authorizeRole(['admin', 'user']), (req, res) => {
     const { id } = req.params;
 
     const query = `
@@ -147,9 +149,8 @@ router.post('/', async (req, res) => {
     }
 });
 
-
 // Actualizar un usuario (PUT)
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     const { id } = req.params;
     const { username, password, full_name, email, role } = req.body;
 
@@ -188,7 +189,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // Eliminar un usuario (DELETE)
-router.delete('/:id', (req, res) => {
+router.delete('/:id', authenticateToken, authorizeRole(['admin']), (req, res) => {
     const { id } = req.params;
 
     const query = `
