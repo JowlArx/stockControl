@@ -1,6 +1,7 @@
 const express = require('express');
 const { db } = require('../models/db'); // Importa la conexión a la base de datos
 const router = express.Router();
+const { sendInventoryChangeNotification } = require('../utils/notifications');
 
 // Obtener todos los registros de logs
 router.get('/', (req, res) => {
@@ -113,22 +114,26 @@ router.get('/:id', (req, res) => {
 router.post('/', async (req, res) => {
     const { product_code, quantity, action, reason } = req.body;
 
-    // Validar los datos
     if (!product_code || !quantity || !action || !reason) {
         return res.status(400).json({ error: 'Todos los campos son obligatorios' });
     }
+
     const query = `
         INSERT INTO inventory_logs (product_code, quantity, action, reason, created_at)
         VALUES (?, ?, ?, ?, NOW())
     `;
+
     db.query(query, [product_code, quantity, action, reason], (err, result) => {
         if (err) {
             console.error('Error al crear el registro:', err);
             return res.status(500).send('Error interno del servidor');
         }
+
+        const log = { product_code, quantity, action, reason };
+        sendInventoryChangeNotification(log);
+
         res.status(201).send({ id: result.insertId, message: 'Registro creado exitosamente' });
     });
-   
 });
 
 // Actualizar un registro de log

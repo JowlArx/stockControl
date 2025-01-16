@@ -26,7 +26,7 @@ router.patch('/:id/role', authenticateToken, authorizeRole(['admin']), (req, res
     const { id } = req.params;
     const { role } = req.body;
 
-    const allowedRoles = ['admin', 'user', 'supplier']; // Define los roles permitidos
+    const allowedRoles = ['admin', 'user', 'staff']; // Define los roles permitidos
 
     if (!role) {
         return res.status(400).send('El campo "role" es obligatorio');
@@ -95,7 +95,7 @@ router.get('/search', authenticateToken, authorizeRole(['admin']), (req, res) =>
 });
 
 // Obtener un usuario por ID (GET BY ID)
-router.get('/:id', authenticateToken, authorizeRole(['admin', 'user']), (req, res) => {
+router.get('/:id', authenticateToken, authorizeRole(['admin', 'user', 'staff']), (req, res) => {
     const { id } = req.params;
 
     const query = `
@@ -118,14 +118,15 @@ router.get('/:id', authenticateToken, authorizeRole(['admin', 'user']), (req, re
 
 // Crear un nuevo usuario (POST)
 router.post('/', async (req, res) => {
-    const { username, password, full_name, email, role } = req.body;
+    const { username, password, full_name, email } = req.body; // Elimina el campo "role" del cuerpo de la solicitud
 
-    if (!username || !password || !email || !role) {
-        return res.status(400).send('Los campos "username", "password", "email" y "role" son obligatorios');
+    if (!username || !password || !email) {
+        return res.status(400).send('Los campos "username", "password" y "email" son obligatorios');
     }
 
     try {
         const hashedPassword = await bcrypt.hash(password, 10); // Encriptar la contraseña
+        const role = 'user'; // Asigna el rol "user" por defecto
 
         const query = `
             INSERT INTO users (username, password_hash, full_name, email, role, created_at, updated_at)

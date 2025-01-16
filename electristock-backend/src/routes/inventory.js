@@ -1,6 +1,51 @@
 const express = require('express');
 const { db } = require('../models/db'); // Importa la conexión a la base de datos
+const excel = require('exceljs');
 const router = express.Router();
+const { sendLowStockAlert } = require('../utils/alerts');
+
+// Generar un reporte de inventario en Excel
+router.get('/report/excel', async (req, res) => {
+    const query = `
+        SELECT i.*, p.name AS product_name, p.product_code, p.description, p.price, p.unit, c.name AS category_name, s.name AS supplier_name
+        FROM inventory i
+        LEFT JOIN products p ON i.product_code = p.product_code
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN suppliers s ON p.supplier_id = s.id
+    `;
+
+    db.query(query, async (err, results) => {
+        if (err) {
+            console.error('Error al obtener el inventario:', err);
+            return res.status(500).send('Error interno del servidor');
+        }
+
+        const workbook = new excel.Workbook();
+        const worksheet = workbook.addWorksheet('Inventario');
+
+        worksheet.columns = [
+            { header: 'ID', key: 'id', width: 10 },
+            { header: 'Producto', key: 'product_name', width: 30 },
+            { header: 'Código', key: 'product_code', width: 15 },
+            { header: 'Descripción', key: 'description', width: 30 },
+            { header: 'Categoría', key: 'category_name', width: 20 },
+            { header: 'Proveedor', key: 'supplier_name', width: 20 },
+            { header: 'Cantidad', key: 'stock_quantity', width: 10 },
+            { header: 'Ubicación', key: 'location', width: 20 },
+            { header: 'Actualizado', key: 'updated_at', width: 20 }
+        ];
+
+        results.forEach(item => {
+            worksheet.addRow(item);
+        });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename=inventario.xlsx');
+
+        await workbook.xlsx.write(res);
+        res.end();
+    });
+});
 
 // Obtener un registro de inventario por ID o product_code (GET BY ID OR P.CODE)
 router.get('/search', (req, res) => {
@@ -39,7 +84,7 @@ router.get('/search', (req, res) => {
     });
 });
 
-// Obtener todos los registros de inventario (GET)
+// Obtener todo el inventario (GET)
 router.get('/', (req, res) => {
     const query = `
         SELECT i.*, p.name AS product_name, p.product_code, p.description, p.price, p.unit, c.name AS category_name, s.name AS supplier_name
@@ -138,10 +183,23 @@ router.post('/', (req, res) => {
             console.error('Error al crear el registro de inventario:', err);
             return res.status(500).send('Error interno del servidor');
         }
+
+        if (stock_quantity < 10) { // Umbral de stock bajo
+            const productQuery = `SELECT name FROM products WHERE product_code = ?`;
+            db.query(productQuery, [product_code], (err, results) => {
+                if (err) {
+                    console.error('Error al obtener el producto:', err);
+                } else {
+                    const product = results[0];
+                    product.stock_quantity = stock_quantity;
+                    sendLowStockAlert(product);
+                }
+            });
+        }
+
         res.status(201).send({ id: result.insertId, message: 'Registro de inventario creado exitosamente' });
     });
 });
-
 
 // Actualizaciones masivas en el inventario (PATCH /inventory/update-massive)
 router.patch('/updateMassive', (req, res) => {

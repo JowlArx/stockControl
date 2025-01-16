@@ -1,11 +1,54 @@
 const express = require('express');
-const { db } = require('../models/db'); // Importa la conexión a la base de datos
+const { db } = require('../models/db');
 const excel = require('exceljs');
 const router = express.Router();
+const upload = require('../middleware/multer'); // Importa el middleware de multer
+const authenticateToken = require('../middleware/auth');
+const authorizeRole = require('../middleware/authRole');
 
-// Obtener productos (GET)
+// Subir una imagen para un producto
+router.post('/upload-image/:id', upload.single('image'), (req, res) => {
+    const { id } = req.params;
+    const imageUrl = req.file.path;
+
+    const query = `UPDATE products SET image_url = ? WHERE id = ?`;
+    db.query(query, [imageUrl, id], (err, result) => {
+        if (err) {
+            console.error('Error al subir la imagen:', err);
+            return res.status(500).send('Error interno del servidor');
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).send('Producto no encontrado');
+        }
+        res.status(200).send('Imagen subida exitosamente');
+    });
+});
+// Obtener todos los productos (GET)
 router.get('/', (req, res) => {
-    const { id, name, product_code, category_id, threshold, page = 1, limit = 10, sort_by = 'id', order = 'asc' } = req.query;
+    const { page = 1, limit = 10, sort_by = 'id', order = 'asc' } = req.query;
+    const offset = (page - 1) * limit;
+
+    const query = `
+        SELECT p.* 
+        FROM products p
+        ORDER BY ${sort_by} ${order}
+        LIMIT ? OFFSET ?
+    `;
+
+    db.query(query, [parseInt(limit), parseInt(offset)], (err, results) => {
+        if (err) {
+            console.error('Error al obtener categorías:', err);
+            return res.status(500).send('Error interno del servidor');
+        }
+        res.status(200).json(results);
+    });
+});
+
+
+
+// Obtener productos (GET BY ID / GET BY NAME / GET BY PRODUCT_CODE)
+router.get('/by', (req, res) => {
+    const { id, name, product_code, threshold, page = 1, limit = 10, sort_by = 'id', order = 'asc' } = req.query;
     const offset = (page - 1) * limit;
 
     let query = `
@@ -29,10 +72,6 @@ router.get('/', (req, res) => {
     if (product_code) {
         conditions.push('p.product_code = ?');
         params.push(product_code);
-    }
-    if (category_id) {
-        conditions.push('p.category_id = ?');
-        params.push(category_id);
     }
     if (threshold) {
         conditions.push('i.stock_quantity <= ?');
@@ -192,25 +231,51 @@ router.put('/:id', (req, res) => {
     const { id } = req.params;
     const { name, product_code, description, category_id, supplier_id, price, unit } = req.body;
 
-    if (!name || !product_code || !description ||!category_id ||!supplier_id || !price || !unit) {
+    if (!name || !product_code || !description || !category_id || !supplier_id || !price || !unit) {
         return res.status(400).send('Todos los campos son obligatorios');
     }
 
-    const query = `
-        UPDATE products
-        SET name = ?, product_code = ?, description = ?, category_id = ?, supplier_id = ?, price = ?, unit = ?, updated_at = NOW()
-        WHERE id = ?
-    `;
-
-    db.query(query, [name, product_code, description, category_id, supplier_id, price, unit, id], (err, result) => {
+    const checkQuery = `SELECT price FROM products WHERE id = ?`;
+    db.query(checkQuery, [id], (err, results) => {
         if (err) {
-            console.error('Error al actualizar el producto:', err);
+            console.error('Error al verificar el producto:', err);
             return res.status(500).send('Error interno del servidor');
         }
-        if (result.affectedRows === 0) {
+        if (results.length === 0) {
             return res.status(404).send('Producto no encontrado');
         }
-        res.status(200).send('Producto actualizado exitosamente');
+
+        const oldPrice = results[0].price;
+
+        const updateQuery = `
+            UPDATE products
+            SET name = ?, product_code = ?, description = ?, category_id = ?, supplier_id = ?, price = ?, unit = ?, updated_at = NOW()
+            WHERE id = ?
+        `;
+
+        db.query(updateQuery, [name, product_code, description, category_id, supplier_id, price, unit, id], (err, result) => {
+            if (err) {
+                console.error('Error al actualizar el producto:', err);
+                return res.status(500).send('Error interno del servidor');
+            }
+            if (result.affectedRows === 0) {
+                return res.status(404).send('Producto no encontrado');
+            }
+
+            if (oldPrice !== price) {
+                const insertPriceHistoryQuery = `
+                    INSERT INTO price_history (product_id, old_price, new_price)
+                    VALUES (?, ?, ?)
+                `;
+                db.query(insertPriceHistoryQuery, [id, oldPrice, price], (err) => {
+                    if (err) {
+                        console.error('Error al registrar el historial de precios:', err);
+                    }
+                });
+            }
+
+            res.status(200).send('Producto actualizado exitosamente');
+        });
     });
 });
 
@@ -219,14 +284,11 @@ router.put('/code/:product_code', (req, res) => {
     const { product_code } = req.params;
     const { name, description, category_id, supplier_id, price, unit } = req.body;
 
-    if (!name || !price || !unit) {
-        return res.status(400).send('Los campos "name", "price" y "unit" son obligatorios');
+    if (!name || !description || !category_id || !supplier_id || !price || !unit) {
+        return res.status(400).send('Todos los campos son obligatorios');
     }
 
-    const checkQuery = `
-        SELECT * FROM products WHERE product_code = ?
-    `;
-
+    const checkQuery = `SELECT price FROM products WHERE product_code = ?`;
     db.query(checkQuery, [product_code], (err, results) => {
         if (err) {
             console.error('Error al verificar el producto:', err);
@@ -235,6 +297,8 @@ router.put('/code/:product_code', (req, res) => {
         if (results.length === 0) {
             return res.status(404).send('Producto no encontrado');
         }
+
+        const oldPrice = results[0].price;
 
         const updateQuery = `
             UPDATE products
@@ -247,6 +311,22 @@ router.put('/code/:product_code', (req, res) => {
                 console.error('Error al actualizar el producto:', err);
                 return res.status(500).send('Error interno del servidor');
             }
+            if (result.affectedRows === 0) {
+                return res.status(404).send('Producto no encontrado');
+            }
+
+            if (oldPrice !== price) {
+                const insertPriceHistoryQuery = `
+                    INSERT INTO price_history (product_id, old_price, new_price)
+                    VALUES ((SELECT id FROM products WHERE product_code = ?), ?, ?)
+                `;
+                db.query(insertPriceHistoryQuery, [product_code, oldPrice, price], (err) => {
+                    if (err) {
+                        console.error('Error al registrar el historial de precios:', err);
+                    }
+                });
+            }
+
             res.status(200).send('Producto actualizado exitosamente');
         });
     });
@@ -312,24 +392,61 @@ router.patch('/code/:product_code', (req, res) => {
     });
 });
 
+
 // Eliminar un producto (DELETE)
-router.delete('/:id', (req, res) => {
+router.delete('/:id', authenticateToken, authorizeRole(['admin']), (req, res) => {
     const { id } = req.params;
 
-    const query = `
-        DELETE FROM products
-        WHERE id = ?
+    const deletePriceHistoryQuery = `
+        DELETE FROM price_history
+        WHERE product_id = ?
     `;
 
-    db.query(query, [id], (err, result) => {
+    db.query(deletePriceHistoryQuery, [id], (err, result) => {
         if (err) {
-            console.error('Error al eliminar el producto:', err);
+            console.error('Error al eliminar el historial de precios:', err);
             return res.status(500).send('Error interno del servidor');
         }
-        if (result.affectedRows === 0) {
-            return res.status(404).send('Producto no encontrado');
-        }
-        res.status(200).send('Producto eliminado exitosamente');
+
+        const deleteInventoryLogsQuery = `
+            DELETE FROM inventory_logs
+            WHERE product_code = (SELECT product_code FROM products WHERE id = ?)
+        `;
+
+        db.query(deleteInventoryLogsQuery, [id], (err, result) => {
+            if (err) {
+                console.error('Error al eliminar los logs de inventario:', err);
+                return res.status(500).send('Error interno del servidor');
+            }
+
+            const deleteInventoryQuery = `
+                DELETE FROM inventory
+                WHERE product_code = (SELECT product_code FROM products WHERE id = ?)
+            `;
+
+            db.query(deleteInventoryQuery, [id], (err, result) => {
+                if (err) {
+                    console.error('Error al eliminar el inventario:', err);
+                    return res.status(500).send('Error interno del servidor');
+                }
+
+                const deleteProductQuery = `
+                    DELETE FROM products
+                    WHERE id = ?
+                `;
+
+                db.query(deleteProductQuery, [id], (err, result) => {
+                    if (err) {
+                        console.error('Error al eliminar el producto:', err);
+                        return res.status(500).send('Error interno del servidor');
+                    }
+                    if (result.affectedRows === 0) {
+                        return res.status(404).send('Producto no encontrado');
+                    }
+                    res.status(200).send('Producto eliminado exitosamente');
+                });
+            });
+        });
     });
 });
 
