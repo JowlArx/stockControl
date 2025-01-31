@@ -1,14 +1,13 @@
 const express = require('express');
-const { db } = require('../models/db'); // Importa la conexión a la base de datos
+const { db } = require('../models/db');
 const router = express.Router();
-const bcrypt = require('bcrypt'); // Importa bcrypt para encriptar contraseñas
-const jwt = require('jsonwebtoken'); // Importa jwt para generar tokens
-const nodemailer = require('nodemailer'); // Importa nodemailer para enviar correos electrónicos
-const crypto = require('crypto'); // Importa crypto para generar tokens de verificación
-const authenticateToken = require('../middleware/auth'); // Importa el middleware de autenticación
-const authorizeRole = require('../middleware/authRole'); // Importa el middleware de autorización
-const { logAudit } = require('../utils/audit'); // Importa la función de auditoría
-const { checkDuplicateEmail } = require('../middleware/duplicateEmail'); // Importa el middleware para verificar correos electrónicos duplicados
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
+const crypto = require('crypto');
+const authenticateToken = require('../middleware/auth');
+const authorizeRole = require('../middleware/authRole');
+const { logAudit } = require('../utils/audit');
 
 // Configuración de nodemailer
 const transporter = nodemailer.createTransport({
@@ -130,57 +129,6 @@ router.get('/:id', authenticateToken, authorizeRole(['admin', 'user', 'staff']),
         res.status(200).json(results[0]);
     });
 });
-
-// Aplicar el middleware antes de crear un nuevo usuario
-router.post('/', duplicateEmail, async (req, res) => {
-    const { username, password, full_name, email } = req.body;
-
-    if (!username || !password || !email) {
-        return res.status(400).send('Los campos "username", "password" y "email" son obligatorios');
-    }
-
-    try {
-        const hashedPassword = await bcrypt.hash(password, 10); // Encriptar la contraseña
-        const role = 'user'; // Asigna el rol "user" por defecto
-        const verificationToken = crypto.randomBytes(3).toString('hex'); // Genera un token de verificación de 6 dígitos hexadecimales
-        const tokenExpiration = new Date(Date.now() + 3600000); // El token expira en 1 hora
-
-        const query = `
-            INSERT INTO users (username, password_hash, full_name, email, role, verification_token, token_expiration, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-        `;
-
-        db.query(query, [username, hashedPassword, full_name, email, role, verificationToken, tokenExpiration], (err, result) => {
-            if (err) {
-                console.error('Error al crear el usuario:', err);
-                return res.status(500).send('Error interno del servidor');
-            }
-
-            const mailOptions = {
-                from: process.env.EMAIL_USER,
-                to: email,
-                subject: 'Verificación de cuenta',
-                text: `Tu código de verificación es: ${verificationToken}`,
-            };
-
-            transporter.sendMail(mailOptions, (error, info) => {
-                if (error) {
-                    console.error('Error al enviar el correo electrónico:', error);
-                    return res.status(500).send('Error interno del servidor');
-                }
-                res.status(201).json({
-                    id: result.insertId,
-                    username,
-                    message: 'Usuario creado exitosamente. Por favor, verifica tu correo electrónico.',
-                });
-            });
-        });
-    } catch (error) {
-        console.error('Error al encriptar la contraseña:', error);
-        res.status(500).send('Error interno del servidor');
-    }
-});
-
 // Crear un nuevo usuario (POST)
 router.post('/', async (req, res) => {
     const { username, password, full_name, email } = req.body;
@@ -190,10 +138,10 @@ router.post('/', async (req, res) => {
     }
 
     try {
-        const hashedPassword = await bcrypt.hash(password, 10); // Encriptar la contraseña
-        const role = 'user'; // Asigna el rol "user" por defecto
-        const verificationToken = crypto.randomBytes(3).toString('hex'); // Genera un token de verificación de 6 dígitos hexadecimales
-        const tokenExpiration = new Date(Date.now() + 3600000); // El token expira en 1 hora
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const role = 'user';
+        const verificationToken = crypto.randomBytes(3).toString('hex');
+        const tokenExpiration = new Date(Date.now() + 3600000);
 
         const query = `
             INSERT INTO users (username, password_hash, full_name, email, role, verification_token, token_expiration, created_at, updated_at)
@@ -236,23 +184,23 @@ router.put('/:id', authenticateToken, authorizeRole(['admin']), async (req, res)
     const { id } = req.params;
     const { username, password, full_name, email, role } = req.body;
 
-    if (!username || !email || !role) {
-        return res.status(400).send('Los campos "username", "email" y "role" son obligatorios');
-    }
-
     try {
-        let hashedPassword;
-        if (password) {
-            hashedPassword = await bcrypt.hash(password, 10); // Encriptar la nueva contraseña si se proporciona
-        }
-
-        const query = `
+        let queryParams = [username, full_name, email, role, id];
+        let query = `
             UPDATE users
-            SET username = ?, ${password ? 'password_hash = ?, ' : ''} full_name = ?, email = ?, role = ?, updated_at = NOW()
-            WHERE id = ?
+            SET username = ?, full_name = ?, email = ?, role = ?, updated_at = NOW()
         `;
 
-        const queryParams = password ? [username, hashedPassword, full_name, email, role, id] : [username, full_name, email, role, id];
+        if (password) {
+            const hashedPassword = await bcrypt.hash(password, 10); // Encriptar la nueva contraseña si se proporciona
+            query = `
+                UPDATE users
+                SET username = ?, password_hash = ?, full_name = ?, email = ?, role = ?, updated_at = NOW()
+            `;
+            queryParams = [username, hashedPassword, full_name, email, role, id];
+        }
+
+        query += ` WHERE id = ?`;
 
         db.query(query, queryParams, (err, result) => {
             if (err) {
@@ -262,11 +210,10 @@ router.put('/:id', authenticateToken, authorizeRole(['admin']), async (req, res)
             if (result.affectedRows === 0) {
                 return res.status(404).send('Usuario no encontrado');
             }
-            logAudit(req.user.id, 'update', 'user', id, 'User updated');
             res.status(200).send('Usuario actualizado exitosamente');
         });
     } catch (error) {
-        console.error('Error al encriptar la contraseña:', error);
+        console.error('Error al actualizar el usuario:', error);
         res.status(500).send('Error interno del servidor');
     }
 });
