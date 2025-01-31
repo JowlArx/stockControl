@@ -1,9 +1,13 @@
 const express = require('express');
 const { db } = require('../models/db'); // Importa la conexión a la base de datos
 const router = express.Router();
+const authenticateToken = require('../middleware/auth'); // Importa el middleware de autenticación
+const authorizeRole = require('../middleware/authRole'); // Importa el middleware de autorización
+const { logAudit } = require('../utils/audit'); // Importa la función de auditoría
+
 
 // Obtener todas las categorías (GET)
-router.get('/', (req, res) => {
+router.get('/', authenticateToken, authorizeRole(['admin', 'staff']), (req, res) => {
     const { page = 1, limit = 10, sort_by = 'id', order = 'asc' } = req.query;
     const offset = (page - 1) * limit;
 
@@ -24,7 +28,7 @@ router.get('/', (req, res) => {
 });
 
 // Obtener una categoría por id (GET BY ID)
-router.get('/:id', (req, res) => {
+router.get('/:id', authenticateToken, authorizeRole(['admin', 'staff']), (req, res) => {
     const { id } = req.params;
 
     const query = `
@@ -46,7 +50,7 @@ router.get('/:id', (req, res) => {
 });
 
 // Crear una nueva categoría (POST)
-router.post('/', (req, res) => {
+router.post('/', authenticateToken, authorizeRole(['admin']), (req, res) => {
     const { name, description } = req.body;
 
     if (!name) {
@@ -64,11 +68,12 @@ router.post('/', (req, res) => {
             return res.status(500).send('Error interno del servidor');
         }
         res.status(201).send({ id: result.insertId, message: 'Categoría creada exitosamente' });
+        logAudit(req.user.id, 'Create', 'category', result.insertId, 'Categoria creada: ' + name);
     });
 });
 
 // Actualizar una categoría (PUT)
-router.put('/:id', (req, res) => {
+router.put('/:id', authenticateToken, authorizeRole(['admin', 'staff']), (req, res) => {
     const { id } = req.params;
     const { name, description } = req.body;
 
@@ -91,11 +96,12 @@ router.put('/:id', (req, res) => {
             return res.status(404).send('Categoría no encontrada');
         }
         res.status(200).send('Categoría actualizada exitosamente');
+        logAudit(req.user.id, 'Update', 'category', id, 'Categoria actualizada: ' + name);
     });
 });
 
 // Eliminar una categoría (DELETE)
-router.delete('/:id', (req, res) => {
+router.delete('/:id', authenticateToken, authorizeRole(['admin']), (req, res) => {
     const { id } = req.params;
 
     const query = `
@@ -112,11 +118,13 @@ router.delete('/:id', (req, res) => {
             return res.status(404).send('Categoría no encontrada');
         }
         res.status(200).send('Categoría eliminada exitosamente');
+        logAudit(req.user.id, 'Delete', 'category', id, 'Categoria eliminada');
+
     });
 });
 
 // Devuelve los productos asociados a una categoría específica (GET /categories/products/:category_id)
-router.get('/products/:category_id', (req, res) => {
+router.get('/products/:category_id', authenticateToken, authorizeRole(['admin', 'staff']), (req, res) => {
     const { category_id } = req.params;
     const { page = 1, limit = 10, sort_by = 'id', order = 'asc' } = req.query;
     const offset = (page - 1) * limit;

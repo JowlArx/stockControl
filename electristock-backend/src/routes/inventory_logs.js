@@ -2,6 +2,7 @@ const express = require('express');
 const { db } = require('../models/db'); // Importa la conexión a la base de datos
 const router = express.Router();
 const { sendInventoryChangeNotification } = require('../utils/notifications');
+const { logAudit } = require('../utils/audit'); // Importa la función de auditoría
 
 // Obtener todos los registros de logs
 router.get('/', (req, res) => {

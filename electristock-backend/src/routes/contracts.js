@@ -1,9 +1,12 @@
 const express = require('express');
 const { db } = require('../models/db');
 const router = express.Router();
+const authenticateToken = require('../middleware/auth');
+const authorizeRole = require('../middleware/authRole');
+const { logAudit } = require('../utils/audit'); // Importa la función de auditoría
 
 // Obtener todos los contratos
-router.get('/', (req, res) => {
+router.get('/', authenticateToken, authorizeRole(['admin', 'staff']), (req, res) => {
     const query = `SELECT * FROM contracts`;
     db.query(query, (err, results) => {
         if (err) {
@@ -15,7 +18,7 @@ router.get('/', (req, res) => {
 });
 
 // Obtener un contrato por ID
-router.get('/:id', (req, res) => {
+router.get('/:id', authenticateToken, authorizeRole(['admin', 'staff']), (req, res) => {
     const { id } = req.params;
     const query = `SELECT * FROM contracts WHERE id = ?`;
     db.query(query, [id], (err, results) => {
@@ -31,7 +34,7 @@ router.get('/:id', (req, res) => {
 });
 
 // Crear un nuevo contrato
-router.post('/', (req, res) => {
+router.post('/', authenticateToken, authorizeRole(['admin']), (req, res) => {
     const { supplier_id, contract_details, start_date, end_date } = req.body;
     const query = `INSERT INTO contracts (supplier_id, contract_details, start_date, end_date) VALUES (?, ?, ?, ?)`;
     db.query(query, [supplier_id, contract_details, start_date, end_date], (err, result) => {
@@ -40,11 +43,12 @@ router.post('/', (req, res) => {
             return res.status(500).send('Error interno del servidor');
         }
         res.status(201).send({ id: result.insertId, message: 'Contrato creado exitosamente' });
+        
     });
 });
 
 // Actualizar un contrato
-router.put('/:id', (req, res) => {
+router.put('/:id', authenticateToken, authorizeRole(['admin', 'staff']), (req, res) => {
     const { id } = req.params;
     const { supplier_id, contract_details, start_date, end_date } = req.body;
     const query = `UPDATE contracts SET supplier_id = ?, contract_details = ?, start_date = ?, end_date = ? WHERE id = ?`;
@@ -61,7 +65,7 @@ router.put('/:id', (req, res) => {
 });
 
 // Eliminar un contrato
-router.delete('/:id', (req, res) => {
+router.delete('/:id', authenticateToken, authorizeRole(['admin']), (req, res) => {
     const { id } = req.params;
     const query = `DELETE FROM contracts WHERE id = ?`;
     db.query(query, [id], (err, result) => {

@@ -11,7 +11,7 @@ const transporter = nodemailer.createTransport({
 const sendInventoryChangeNotification = (log) => {
     const mailOptions = {
         from: process.env.EMAIL_USER,
-        to: 'admin@example.com', // Cambia esto al correo del administrador
+        to: 'arceurbefernando@gmail.com', // Cambia esto al correo del administrador
         subject: 'Notificación de Cambio en el Inventario',
         text: `Se ha realizado un cambio en el inventario:
         Producto: ${log.product_code}

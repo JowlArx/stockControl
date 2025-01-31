@@ -1,0 +1,194 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    transition: background-color 0.5s ease, color 0.5s ease, border 0.5s ease; /* Transición suave */
+}
+.loginContainer {
+    display: flex;
+    height: 100vh;
+}
+  
+  
+.loginContainer h1 {
+    margin-bottom: 20px;
+}
+  
+.loginContainer form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+  
+.loginContainer input {
+    margin-bottom: 10px;
+    padding: 10px;
+    width: 125%;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.loginContainer button {
+    padding: 10px 20px;
+    background-color: rgb(20, 20, 145);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+  
+.loginContainer button:hover {
+    background-color: #0056b3;
+}
+  
+/*Left container*/
+
+.leftContainer {
+    flex: 1;
+    position: relative;
+    background: 
+    radial-gradient(circle at center, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 1)), /* Oscuro desde el centro */
+    radial-gradient(circle at top left, rgba(0, 0, 128, 0.6), transparent 70%), /* Luz azul desde la esquina superior izquierda */
+    radial-gradient(circle at bottom right, rgba(0, 0, 128, 0.6), transparent 70%); /* Luz azul desde la esquina inferior derecha */
+    background-blend-mode: screen; /* Mezclamos los gradientes */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-family: "Poppins", sans-serif;
+    font-style: italic;
+    text-align: center;
+}
+.leftContainer::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+      linear-gradient(to right, rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+    background-size: 9px 9px; /* Tamaño de la cuadrícula */
+    z-index: 0;
+}
+.title {
+    font-size: 40px;
+    font-weight: 350;
+    background-image: linear-gradient(180deg, #ffffff, #616162);
+    -webkit-text-fill-color: transparent;
+    -webkit-background-clip: text;
+    -webkit-font-smoothing: antialiased; /* Suavizado para navegadores WebKit */
+    text-rendering: optimizeLegibility; /* Habilita el suavizado avanzado */
+    z-index: 1;
+    padding: 10%;
+}
+.subTitle {
+    font-size: 25px;
+    font-weight: 350;
+    background-image: linear-gradient(180deg, #ffffff, #616162);
+    -webkit-text-fill-color: transparent;
+    -webkit-background-clip: text;
+    -webkit-font-smoothing: antialiased; /* Suavizado para navegadores WebKit */
+    text-rendering: optimizeLegibility; /* Habilita el suavizado avanzado */
+    z-index: 1;
+    padding: 10%;
+}
+/*Right container*/
+.rightContainer h1 {
+    padding-bottom: 10px;
+}
+.rightContainer h6 {
+    padding-bottom: 5px;
+}
+.rightContainer p {
+    padding-top: 5px;
+    font-size: 10px;
+}
+.rightContainer {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: #f0f0f0;
+    font-family: "Poppins", serif;
+    align-items: right;
+}
+.loginContainer form {
+    padding: 0;
+    box-shadow: none;
+    background-color: #f0f0f0;
+}
+
+.formContainer h6 {
+    font-size: 15px;
+    font-weight: 100;
+}
+
+/* logo */
+
+.logoContainer {
+    position: fixed;
+    right: 20px;
+    top: 20px;
+}
+
+.logoContainer img {
+    width: 110px;
+    height: 100px;
+    margin-top: 20px;
+    margin-left: 20px;
+    cursor: pointer;
+}
+
+/* Estilos para el modo oscuro */
+
+.loginContainer.dark {
+    background-color: #121212;
+    color: #ffffff;
+    transition: background-color 0.5s ease, color 0.5s ease, border 0.5s ease; /* Transición suave */
+}
+  .loginContainer.dark form {
+    background-color: #1e1e1e;
+    color: #ffffff;
+    transition: background-color 0.5s ease, color 0.5s ease, border 0.5s ease; /* Transición suave */
+}
+  
+  .loginContainer.dark .leftContainer {
+    background: 
+    radial-gradient(circle at center, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 1)), /* Oscuro desde el centro */
+    radial-gradient(circle at top left, rgba(59, 59, 68, 0.6), transparent 70%), /* Luz azul desde la esquina superior izquierda */
+    radial-gradient(circle at bottom right, rgba(59, 59, 68, 0.6), transparent 70%); /* Luz azul desde la esquina inferior derecha */
+    transition: background-color 0.5s ease, color 0.5s ease, border 0.5s ease; /* Transición suave */
+}
+  
+  .loginContainer.dark .rightContainer {
+    background-color: #1e1e1e;
+    transition: background-color 0.5s ease, color 0.5s ease, border 0.5s ease; /* Transición suave */
+}
+  
+  .loginContainer.dark input {
+    background-color: #333;
+    color: #fff;
+    border: 1px solid #555;
+    transition: background-color 0.5s ease, color 0.5s ease, border 0.5s ease; /* Transición suave */
+}
+  
+  .loginContainer.dark button, form {
+    background-color: #444;
+    transition: background-color 0.5s ease, color 0.5s ease, border 0.5s ease; /* Transición suave */
+}
+  
+  .loginContainer.dark button:hover {
+    background-color: #666;
+    transition: background-color 0.5s ease, color 0.5s ease, border 0.5s ease; /* Transición suave */
+}

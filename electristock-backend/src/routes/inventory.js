@@ -3,6 +3,7 @@ const { db } = require('../models/db'); // Importa la conexión a la base de dat
 const excel = require('exceljs');
 const router = express.Router();
 const { sendLowStockAlert } = require('../utils/alerts');
+const { logAudit } = require('../utils/audit'); // Importa la función de auditoría
 
 // Generar un reporte de inventario en Excel
 router.get('/report/excel', async (req, res) => {

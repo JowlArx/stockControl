@@ -1,6 +1,7 @@
 const express = require('express');
 const { db } = require('../models/db'); // Importa la conexión a la base de datos
 const router = express.Router();
+const { logAudit } = require('../utils/audit'); // Importa la función de auditoría
 
 // Obtener todos los proveedores (GET)
 router.get('/', (req, res) => {
@@ -95,6 +96,7 @@ router.post('/', (req, res) => {
             return res.status(500).send('Error interno del servidor');
         }
         res.status(201).send({ id: result.insertId, message: 'Proveedor cargado exitosamente' });
+        logAudit(req.user.id, 'Create', 'provedor', result.insertId, 'Proveedor creado: ' + name);
     });
 });
 
@@ -122,6 +124,7 @@ router.put('/:id', (req, res) => {
             return res.status(404).send('Proveedor no encontrado');
         }
         res.status(200).send('Proveedor actualizado exitosamente');
+        logAudit(req.user.id, 'Update', 'provedor', id, 'Proveedor actualizado: ' + name);
     });
 });
 
@@ -143,6 +146,7 @@ router.delete('/:id', (req, res) => {
             return res.status(404).send('Proveedor no encontrado');
         }
         res.status(200).send('Proveedor eliminado exitosamente');
+        logAudit(req.user.id, 'Delete', 'provedor', id, 'Proveedor eliminado: ' + name);
     });
 });
 

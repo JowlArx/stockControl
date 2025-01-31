@@ -5,9 +5,10 @@ const router = express.Router();
 const upload = require('../middleware/multer'); // Importa el middleware de multer
 const authenticateToken = require('../middleware/auth');
 const authorizeRole = require('../middleware/authRole');
+const { logAudit } = require('../utils/audit'); // Importa la función de auditoría
 
 // Subir una imagen para un producto
-router.post('/upload-image/:id', upload.single('image'), (req, res) => {
+router.post('/uploadImage/:id', upload.single('image'), (req, res) => {
     const { id } = req.params;
     const imageUrl = req.file.path;
 
@@ -20,6 +21,7 @@ router.post('/upload-image/:id', upload.single('image'), (req, res) => {
         if (result.affectedRows === 0) {
             return res.status(404).send('Producto no encontrado');
         }
+        logAudit(req.user.id, 'upload', 'product', id, 'Image uploaded - prouct id:' + id);
         res.status(200).send('Imagen subida exitosamente');
     });
 });
@@ -164,6 +166,7 @@ router.get('/export/excel', async (req, res) => {
 
         await workbook.xlsx.write(res);
         res.end();
+        logAudit(req.user.id, 'Exportado', 'products', 0, 'productos expotados (Excel)');
     });
 });
 
@@ -201,6 +204,7 @@ router.get('/export/svg', async (req, res) => {
 
         res.setHeader('Content-Type', 'image/svg+xml');
         res.send(svg.svg());
+        logAudit(req.user.id, 'Exportado', 'products', 0000, 'productos exportados (SVG)');
     });
 });
 
@@ -223,6 +227,7 @@ router.post('/', (req, res) => {
             return res.status(500).send('Error interno del servidor');
         }
         res.status(201).send({ id: result.insertId, message: 'Producto creado exitosamente' });
+        logAudit(req.user.id, 'create', 'product', result.insertId, 'Producto creado ' + name);
     });
 });
 
@@ -275,6 +280,7 @@ router.put('/:id', (req, res) => {
             }
 
             res.status(200).send('Producto actualizado exitosamente');
+            logAudit(req.user.id, 'updatebyid', 'product', id, 'Producto actualizado');
         });
     });
 });
@@ -328,6 +334,7 @@ router.put('/code/:product_code', (req, res) => {
             }
 
             res.status(200).send('Producto actualizado exitosamente');
+            logAudit(req.user.id, 'updatebycode', 'product', product_code, 'Actualizacion de producto');
         });
     });
 });
@@ -359,6 +366,7 @@ router.patch('/:id', (req, res) => {
             return res.status(404).send('Producto no encontrado');
         }
         res.status(200).send('Producto actualizado parcialmente');
+        logAudit(req.user.id, 'update parcial byid', 'product', id, 'actualizacion parcial de producto (id)');
     });
 });
 
@@ -389,6 +397,7 @@ router.patch('/code/:product_code', (req, res) => {
             return res.status(404).send('Producto no encontrado');
         }
         res.status(200).send('Producto actualizado parcialmente');
+        logAudit(req.user.id, 'update parcial bycode', 'product', product_code, 'actualizacion parcial de producto (product_code)');
     });
 });
 
@@ -403,6 +412,7 @@ router.delete('/:id', authenticateToken, authorizeRole(['admin']), (req, res) =>
     `;
 
     db.query(deletePriceHistoryQuery, [id], (err, result) => {
+        const audID = id;
         if (err) {
             console.error('Error al eliminar el historial de precios:', err);
             return res.status(500).send('Error interno del servidor');
@@ -444,6 +454,7 @@ router.delete('/:id', authenticateToken, authorizeRole(['admin']), (req, res) =>
                         return res.status(404).send('Producto no encontrado');
                     }
                     res.status(200).send('Producto eliminado exitosamente');
+                    logAudit(req.user.id, 'delete', 'product', audID, 'Producto eliminado');
                 });
             });
         });
