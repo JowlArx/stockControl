@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Link, Route, Routes } from 'react-router-dom';
 import logoDark from '../../../resources/logoDarkmode.png';
 import logo from '../../../resources/logo.png';
+import '../styles/dashboard.css';
 
 const Dashboard = () => {
   const [selectedMenu, setSelectedMenu] = useState('Dashboard');
@@ -12,16 +13,18 @@ const Dashboard = () => {
       <div className='topleftContainer'>
         <div className='sideMenu'>
           <div className='logo'>
-            <img src={logo} alt="logo" />
+            <img src={logoDark} alt="logo" />
             <h1>Electristock</h1>
           </div>
-          <Link to="dashboard" onClick={() => setSelectedMenu('Dashboard')}><h3>Dashboard</h3></Link>
-          <Link to="productos" onClick={() => setSelectedMenu('Productos')}><h3>Productos</h3></Link>
-          <Link to="categorias" onClick={() => setSelectedMenu('Categorias')}><h3>Categorias</h3></Link>
-          <Link to="proveedores" onClick={() => setSelectedMenu('Proveedores')}><h3>Proveedores</h3></Link>
-          <Link to="contratos" onClick={() => setSelectedMenu('Contratos')}><h3>Contratos</h3></Link>
-          <Link to="inventario" onClick={() => setSelectedMenu('Inventario')}><h3>Inventario</h3></Link>
-          <Link to="movimientos" onClick={() => setSelectedMenu('Movimientos de Stock')}><h3>Movimientos de Stock</h3></Link>
+          <div className='linksContainer'>
+            <Link to="dashboard" onClick={() => setSelectedMenu('Dashboard')}><h3>Dashboard</h3></Link>
+            <Link to="productos" onClick={() => setSelectedMenu('Productos')}><h3>Productos</h3></Link>
+            <Link to="categorias" onClick={() => setSelectedMenu('Categorias')}><h3>Categorias</h3></Link>
+            <Link to="proveedores" onClick={() => setSelectedMenu('Proveedores')}><h3>Proveedores</h3></Link>
+            <Link to="contratos" onClick={() => setSelectedMenu('Contratos')}><h3>Contratos</h3></Link>
+            <Link to="inventario" onClick={() => setSelectedMenu('Inventario')}><h3>Inventario</h3></Link>
+            <Link to="movimientos" onClick={() => setSelectedMenu('Movimientos de Stock')}><h3>Movimientos de Stock</h3></Link>
+          </div>
         </div>
         
         <div className='topBar'>
